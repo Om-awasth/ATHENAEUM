@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Athenaeum — Library Management System</title>
+    <meta name="description" content="A comprehensive, academic library management system featuring cataloging, circulation, waitlist holds, and multithreaded fine monitoring.">
+
+    <!-- Google Fonts: Playfair Display (Serif) & Inter (Sans-Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- Editorial Theme Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="editorial-theme">
+
+    <!-- Fullscreen Auth Overlay (When not logged in) -->
+    <div id="authOverlay" class="auth-overlay hidden">
+        <div class="auth-card">
+            <div class="auth-header">
+                <span class="auth-crest">🏛</span>
+                <h1 class="auth-title">ATHENAEUM</h1>
+                <p class="auth-subtitle">Academic Library & Research Repository</p>
+            </div>
+            
+            <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); handleLoginSubmit();">
+                <div class="form-group">
+                    <label for="loginEmail">Institutional Email</label>
+                    <input type="email" id="loginEmail" placeholder="e.g. admin@library.edu" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" id="btnLoginSubmit" class="btn btn-primary btn-block">Sign In to Repository</button>
+            </form>
+
+            <div class="auth-quick-creds">
+                <p class="creds-label">Quick Demo Access (Click to Fill):</p>
+                <div class="creds-buttons">
+                    <button type="button" class="btn-demo-badge" onclick="fillCredentials('admin@library.edu', 'admin123')">
+                        <strong>Librarian:</strong> admin@library.edu
+                    </button>
+                    <button type="button" class="btn-demo-badge" onclick="fillCredentials('rahul.sharma@student.edu', 'member123')">
+                        <strong>Member:</strong> rahul.sharma@student.edu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Shell -->
+    <div class="app-layout" id="appLayout">
+        
+        <!-- Fixed Left Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-block">
+                    <div class="brand-mark">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="brand-title">ATHENAEUM</h2>
+                        <span class="brand-tag">Academic Library</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links with Geometric Inline SVGs -->
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-view="dashboard" id="navDashboard" onclick="switchView('dashboard')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-view="books" id="navBooks" onclick="switchView('books')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>Catalog Holdings</span>
+                </button>
+                <button class="nav-item" data-view="circulation" id="navCirculation" onclick="switchView('circulation')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>
+                    <span>Issue & Return Desk</span>
+                </button>
+                <button class="nav-item" data-view="overdue" id="navOverdue" onclick="switchView('overdue')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Overdue & Fines</span>
+                    <span class="badge-alert hidden" id="sidebarOverdueCount">0</span>
+                </button>
+                <button class="nav-item" data-view="members" id="navMembers" onclick="switchView('members')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Members Directory</span>
+                </button>
+                <button class="nav-item" data-view="reservations" id="navReservations" onclick="switchView('reservations')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                    <span>Hold Reservations</span>
+                </button>
+                <button class="nav-item" data-view="reports" id="navReports" onclick="switchView('reports')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    <span>Async Reports</span>
+                </button>
+            </nav>
+
+            <!-- User Session Footer in Sidebar -->
+            <div class="sidebar-footer">
+                <div class="user-badge">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div class="user-details">
+                        <span class="user-name" id="userNameLabel">Admin</span>
+                        <span class="user-role" id="userRoleLabel">Librarian</span>
+                    </div>
+                </div>
+                <button class="btn-logout" title="Sign Out" onclick="handleLogout()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Fixed Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Toggle Menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <!-- Global Live Search -->
+                    <div class="global-search-container">
+                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="globalSearchInput" placeholder="Quick search holdings, authors, ISBNs (Press '/' to focus)..." aria-label="Search Catalog">
+                        <span class="kbd-hint">/</span>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="daemon-indicator" title="Background Overdue Scanner Daemon is actively monitoring loans">
+                        <span class="pulse-dot"></span>
+                        <span class="daemon-text">Daemon Active</span>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="showQuickIssueModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>Issue Item</span>
+                    </button>
+                    <button class="btn btn-primary btn-sm librarian-only" onclick="showAddBookModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>Add Holding</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable View Canvas -->
+            <div class="view-container">
+
+                <!-- ======================================================= -->
+                <!-- VIEW 1: DASHBOARD                                       -->
+                <!-- ======================================================= -->
+                <section id="viewDashboard" class="view-panel active">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Circulation Overview</h1>
+                            <p class="page-subheading">Live inventory, active loans, and real-time fine diagnostics</p>
+                        </div>
+                        <div class="date-badge" id="currentDateDisplay">Today</div>
+                    </div>
+
+                    <!-- 5 Metric Cards -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Total Holdings</span>
+                            <div class="metric-value-row">
+                                <span class="metric-number" id="statTotalBooks">0</span>
+                                <span class="metric-sub" id="statTotalCopies">0 copies</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Available Copies</span>
+                            <div class="metric-value-row">
+                                <span class="metric-number text-success" id="statAvailableCopies">0</span>
+                                <span class="metric-sub">Ready to borrow</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Currently Issued</span>
+                            <div class="metric-value-row">
+                                <span class="metric-number text-warning" id="statIssuedCount">0</span>
+                                <span class="metric-sub">Active circulation</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Overdue Loans</span>
+                            <div class="metric-value-row">
+                                <span class="metric-number text-danger" id="statOverdueCount">0</span>
+                                <span class="metric-sub">Fines accruing</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Registered Members</span>
+                            <div class="metric-value-row">
+                                <span class="metric-number" id="statMemberCount">0</span>
+                                <span class="metric-sub">Students & Faculty</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Analytical Visuals (Handcrafted SVG Charts) -->
+                    <div class="charts-row">
+                        <!-- Chart 1: Category Distribution -->
+                        <div class="chart-card">
+                            <div class="card-header-row">
+                                <h2 class="card-title">Holdings Distribution by Category</h2>
+                                <span class="chart-pill">Live Aggregation</span>
+                            </div>
+                            <div class="chart-wrapper" id="categoryChartContainer">
+                                <!-- Rendered dynamically by app.js with SVG -->
+                            </div>
+                        </div>
+
+                        <!-- Chart 2: Circulation Status Breakdown -->
+                        <div class="chart-card">
+                            <div class="card-header-row">
+                                <h2 class="card-title">Inventory Circulation Velocity</h2>
+                                <span class="chart-pill">Real-time Ratio</span>
+                            </div>
+                            <div class="chart-wrapper" id="velocityChartContainer">
+                                <!-- Rendered dynamically by app.js with SVG -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lower Split: Urgent Overdue + Recent Activity -->
+                    <div class="split-row">
+                        <!-- Urgent Overdue List -->
+                        <div class="split-card">
+                            <div class="card-header-row">
+                                <h2 class="card-title">Urgent Overdue Items</h2>
+                                <button class="btn btn-outline btn-xs" onclick="switchView('overdue')">View All</button>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table" id="dashboardOverdueTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Borrower</th>
+                                            <th>Due Date</th>
+                                            <th>Accrued Fine</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboardOverdueBody">
+                                        <!-- Loaded by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Recent Circulation Activity -->
+                        <div class="split-card">
+                            <div class="card-header-row">
+                                <h2 class="card-title">Recent Transactions</h2>
+                                <button class="btn btn-outline btn-xs" onclick="switchView('circulation')">Manage Desk</button>
+                            </div>
+                            <div class="activity-stream" id="dashboardActivityStream">
+                                <!-- Loaded by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 2: BOOKS & MATERIALS CATALOG                       -->
+                <!-- ======================================================= -->
+                <section id="viewBooks" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Catalog Holdings</h1>
+                            <p class="page-subheading">Browse, search, and manage books, periodicals, journals, and reference materials</p>
+                        </div>
+                        <div class="title-actions">
+                            <button class="btn btn-primary librarian-only" onclick="showAddBookModal()">+ Add New Holding</button>
+                        </div>
+                    </div>
+
+                    <!-- Filter & View Toggle Bar -->
+                    <div class="catalog-filter-bar">
+                        <div class="filter-group-left">
+                            <div class="filter-input-wrapper">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="catalogSearchInput" placeholder="Filter by title, author, or ISBN...">
+                            </div>
+
+                            <select id="catalogCategorySelect" class="form-select" onchange="fetchCatalog()">
+                                <option value="">All Categories & Types</option>
+                            </select>
+
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="catalogAvailableOnly" onchange="fetchCatalog()">
+                                <span>Available Only</span>
+                            </label>
+                        </div>
+
+                        <div class="filter-group-right">
+                            <select id="catalogSortSelect" class="form-select" onchange="fetchCatalog()">
+                                <option value="title">Sort: Title (A-Z)</option>
+                                <option value="year">Sort: Year (Newest)</option>
+                                <option value="available">Sort: Available Copies</option>
+                            </select>
+
+                            <div class="view-toggle-btns" role="group" aria-label="Catalog View Mode">
+                                <button class="btn-toggle active" id="btnToggleGrid" onclick="setCatalogViewMode('grid')" title="Cover Tiles Grid">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                </button>
+                                <button class="btn-toggle" id="btnToggleTable" onclick="setCatalogViewMode('table')" title="Data Table">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid View Container (Cover tiles generated with typography block) -->
+                    <div id="catalogGridContainer" class="catalog-grid">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Table View Container -->
+                    <div id="catalogTableContainer" class="table-container hidden">
+                        <table class="data-table" id="catalogTable">
+                            <thead>
+                                <tr>
+                                    <th>Holding</th>
+                                    <th>Type</th>
+                                    <th>Details (Author / Volume / Ref)</th>
+                                    <th>Year</th>
+                                    <th>Status</th>
+                                    <th>Copies</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="catalogTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 3: ISSUE & RETURN DESK                             -->
+                <!-- ======================================================= -->
+                <section id="viewCirculation" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Issue & Return Desk</h1>
+                            <p class="page-subheading">Process student checkouts, inspect borrowing limits, and record returns</p>
+                        </div>
+                    </div>
+
+                    <div class="desk-grid">
+                        <!-- Left: Issue Item Form -->
+                        <div class="split-card">
+                            <h2 class="card-title">Check Out Item to Member</h2>
+                            <form id="deskIssueForm" onsubmit="event.preventDefault(); handleDeskIssue();" class="desk-form">
+                                <div class="form-group">
+                                    <label for="deskMemberSelect">Select Patron / Student</label>
+                                    <select id="deskMemberSelect" class="form-select" required onchange="updateMemberQuotaPreview()">
+                                        <option value="">-- Choose Member --</option>
+                                    </select>
+                                    <div class="quota-preview" id="memberQuotaPreview">
+                                        Select a member to inspect active quota.
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="deskBookSelect">Select Available Holding</label>
+                                    <select id="deskBookSelect" class="form-select" required>
+                                        <option value="">-- Choose Available Item --</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="deskLoanDays">Loan Duration (Days)</label>
+                                    <input type="number" id="deskLoanDays" value="14" min="1" max="60" class="form-input">
+                                    <span class="field-hint">Standard loan: 14 days (Books), 7 days (Magazines), 5 days (Journals)</span>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">Authorize Loan & Issue</button>
+                            </form>
+                        </div>
+
+                        <!-- Right: Active Loans Stream with 1-click Return & Mark Lost -->
+                        <div class="split-card">
+                            <div class="card-header-row">
+                                <h2 class="card-title">Active Circulation Records</h2>
+                                <input type="text" id="activeLoansFilter" placeholder="Filter active loans..." class="form-input-sm" oninput="filterActiveLoansTable()">
+                            </div>
+
+                            <div class="table-container">
+                                <table class="data-table" id="activeLoansTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Item Title</th>
+                                            <th>Borrower</th>
+                                            <th>Due Date</th>
+                                            <th>Status</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="activeLoansBody">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 4: OVERDUE & FINES (Multithreaded Daemon)           -->
+                <!-- ======================================================= -->
+                <section id="viewOverdue" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Overdue Accounts & Fines</h1>
+                            <p class="page-subheading">Loans past their due date prioritized by penalty amount (Unit 4 PriorityQueue)</p>
+                        </div>
+                        <div class="title-actions">
+                            <button class="btn btn-secondary" onclick="triggerManualDaemonScan()">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                <span>Trigger Daemon Scan Now</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-container">
+                            <table class="data-table" id="overduePriorityTable">
+                                <thead>
+                                    <tr>
+                                        <th>Tx #</th>
+                                        <th>Title</th>
+                                        <th>Type</th>
+                                        <th>Borrower</th>
+                                        <th>Due Date</th>
+                                        <th>Days Overdue</th>
+                                        <th>Fine Accrued</th>
+                                        <th class="text-right">Settle & Close</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overduePriorityBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 5: MEMBERS DIRECTORY                               -->
+                <!-- ======================================================= -->
+                <section id="viewMembers" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Members Directory</h1>
+                            <p class="page-subheading">Manage student and faculty reader profiles and borrowing rights</p>
+                        </div>
+                        <div class="title-actions">
+                            <button class="btn btn-primary librarian-only" onclick="showAddMemberModal()">+ Register New Member</button>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-container">
+                            <table class="data-table" id="membersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Member ID</th>
+                                        <th>Full Name</th>
+                                        <th>Institutional Email</th>
+                                        <th>Phone</th>
+                                        <th>Active Loans / Limit</th>
+                                        <th>Join Date</th>
+                                        <th class="text-right">Borrowing History</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="membersTableBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 6: HOLD RESERVATIONS QUEUE                         -->
+                <!-- ======================================================= -->
+                <section id="viewReservations" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Waitlist Hold Reservations</h1>
+                            <p class="page-subheading">First-in, first-out (FIFO Queue) reservations for high-demand holdings</p>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-container">
+                            <table class="data-table" id="reservationsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Queue Position</th>
+                                        <th>Reserved Holding</th>
+                                        <th>Patron Name</th>
+                                        <th>Email</th>
+                                        <th>Hold Date</th>
+                                        <th>Status</th>
+                                        <th class="text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reservationsTableBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ======================================================= -->
+                <!-- VIEW 7: MULTITHREADED ASYNC REPORTS                     -->
+                <!-- ======================================================= -->
+                <section id="viewReports" class="view-panel">
+                    <div class="page-title-strip">
+                        <div>
+                            <h1 class="page-heading">Asynchronous Audit Reports</h1>
+                            <p class="page-subheading">Dispatched to an ExecutorService thread pool without blocking the main server thread</p>
+                        </div>
+                    </div>
+
+                    <div class="reports-controls-bar">
+                        <button class="btn btn-secondary" onclick="generateAsyncReport('most-borrowed')">
+                            📊 Top Borrowed Items Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="generateAsyncReport('overdue-audit')">
+                            ⚠️ Overdue Fines Audit Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="generateAsyncReport('system-health')">
+                            ⚡ System Health & Thread State
+                        </button>
+                    </div>
+
+                    <div class="report-result-card" id="reportResultCard">
+                        <div class="card-header-row">
+                            <h2 class="card-title" id="reportTitle">Select a report above to trigger execution</h2>
+                            <span class="thread-badge" id="reportThreadBadge">Thread: Idle</span>
+                        </div>
+                        <div id="reportContentArea" class="report-content-area">
+                            <p class="text-muted">Click any report button above to dispatch a background task to the ExecutorService.</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- =============================================================== -->
+    <!-- MODALS & DIALOGS                                                -->
+    <!-- =============================================================== -->
+
+    <!-- Add / Edit Holding Modal -->
+    <div id="bookModal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title" id="bookModalTitle">Add New Catalog Holding</h3>
+                <button class="btn-close" onclick="closeModal('bookModal')">&times;</button>
+            </div>
+            <form id="bookForm" onsubmit="event.preventDefault(); handleSaveBookSubmit();" class="modal-body">
+                <input type="hidden" id="bookFormId" value="0">
+                
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="bookItemType">Holding Type</label>
+                        <select id="bookItemType" class="form-select" onchange="toggleHoldingTypeFields()">
+                            <option value="BOOK">Book</option>
+                            <option value="MAGAZINE">Magazine / Periodical</option>
+                            <option value="JOURNAL">Academic Journal</option>
+                            <option value="REFERENCE">Reference Material (Non-circulating)</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-2">
+                        <label for="bookTitle">Title / Name *</label>
+                        <input type="text" id="bookTitle" class="form-input" required placeholder="e.g. Effective Java">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="bookPublisher">Publisher *</label>
+                        <input type="text" id="bookPublisher" class="form-input" required placeholder="e.g. Addison-Wesley">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="bookYear">Publication Year *</label>
+                        <input type="number" id="bookYear" class="form-input" required value="2024" min="1700" max="2099">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="bookCopies">Total Copies *</label>
+                        <input type="number" id="bookCopies" class="form-input" required value="3" min="1" max="100">
+                    </div>
+                </div>
+
+                <!-- Fields for BOOK -->
+                <div id="fieldsBook" class="subtype-fields">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="bookAuthor">Author(s) *</label>
+                            <input type="text" id="bookAuthor" class="form-input" placeholder="e.g. Joshua Bloch">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="bookGenre">Genre / Subject</label>
+                            <input type="text" id="bookGenre" class="form-input" placeholder="e.g. Computer Science">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bookIsbn">ISBN (ISBN-10 or ISBN-13 with checksum) *</label>
+                        <input type="text" id="bookIsbn" class="form-input" placeholder="e.g. 978-0134685991">
+                        <span class="field-hint">Validated via checksum algorithm (throws InvalidISBNException if invalid)</span>
+                    </div>
+                </div>
+
+                <!-- Fields for MAGAZINE -->
+                <div id="fieldsMagazine" class="subtype-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="magIssue">Issue Number</label>
+                            <input type="number" id="magIssue" class="form-input" value="1">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="magMonth">Month / Period</label>
+                            <input type="text" id="magMonth" class="form-input" placeholder="e.g. October">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="magCategory">Category</label>
+                            <input type="text" id="magCategory" class="form-input" placeholder="e.g. Technology">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fields for JOURNAL -->
+                <div id="fieldsJournal" class="subtype-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="jnlVolume">Volume & Number</label>
+                            <input type="text" id="jnlVolume" class="form-input" placeholder="e.g. Vol. 42 No. 3">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="jnlImpact">Impact Factor</label>
+                            <input type="number" step="0.01" id="jnlImpact" class="form-input" value="3.5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fields for REFERENCE -->
+                <div id="fieldsReference" class="subtype-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="refDiscipline">Field of Study</label>
+                            <input type="text" id="refDiscipline" class="form-input" placeholder="e.g. General Knowledge">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="refEdition">Edition</label>
+                            <input type="text" id="refEdition" class="form-input" placeholder="e.g. 15th Edition">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="refDewey">Dewey Decimal Code</label>
+                            <input type="text" id="refDewey" class="form-input" placeholder="e.g. 031.02">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bookModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveBook">Save Holding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Issue Modal (Triggered from Topbar or Book Tile) -->
+    <div id="quickIssueModal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">Quick Book Checkout</h3>
+                <button class="btn-close" onclick="closeModal('quickIssueModal')">&times;</button>
+            </div>
+            <form id="quickIssueForm" onsubmit="event.preventDefault(); handleQuickIssueSubmit();" class="modal-body">
+                <div class="form-group">
+                    <label for="quickIssueItemSelect">Select Catalog Holding *</label>
+                    <select id="quickIssueItemSelect" class="form-select" required>
+                        <option value="">-- Choose Item --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quickIssueMemberSelect">Select Patron *</label>
+                    <select id="quickIssueMemberSelect" class="form-select" required>
+                        <option value="">-- Choose Patron --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quickIssueDays">Loan Period (Days)</label>
+                    <input type="number" id="quickIssueDays" class="form-input" value="14" min="1" max="60">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('quickIssueModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Complete Loan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Member Modal -->
+    <div id="memberModal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">Register Library Member</h3>
+                <button class="btn-close" onclick="closeModal('memberModal')">&times;</button>
+            </div>
+            <form id="memberForm" onsubmit="event.preventDefault(); handleSaveMemberSubmit();" class="modal-body">
+                <div class="form-group">
+                    <label for="memName">Full Legal Name *</label>
+                    <input type="text" id="memName" class="form-input" required placeholder="e.g. Vikram Iyer">
+                </div>
+                <div class="form-group">
+                    <label for="memEmail">Institutional Email *</label>
+                    <input type="email" id="memEmail" class="form-input" required placeholder="e.g. vikram.iyer@student.edu">
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="memPhone">Phone Number *</label>
+                        <input type="tel" id="memPhone" class="form-input" required placeholder="+91 91234 56789">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="memQuota">Max Borrow Limit *</label>
+                        <input type="number" id="memQuota" class="form-input" required value="3" min="1" max="10">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('memberModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Patron</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patron Borrowing History Drawer / Modal -->
+    <div id="historyModal" class="modal-backdrop hidden">
+        <div class="modal-dialog modal-dialog-lg">
+            <div class="modal-header">
+                <h3 class="modal-title" id="historyModalTitle">Borrowing History</h3>
+                <button class="btn-close" onclick="closeModal('historyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tx #</th>
+                                <th>Item Title</th>
+                                <th>Issue Date</th>
+                                <th>Due Date</th>
+                                <th>Return Date</th>
+                                <th>Status</th>
+                                <th>Fine</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('historyModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Action Modal (Destructive Actions) -->
+    <div id="confirmModal" class="modal-backdrop hidden">
+        <div class="modal-dialog modal-dialog-sm">
+            <div class="modal-header">
+                <h3 class="modal-title" id="confirmModalTitle">Confirm Action</h3>
+                <button class="btn-close" onclick="closeModal('confirmModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalMessage" class="confirm-message">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmAction">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <!-- Vanilla Javascript Application Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
